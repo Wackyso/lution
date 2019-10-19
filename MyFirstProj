@@ -1,0 +1,245 @@
+using System;
+using System.Collections.Generic;
+using System.ComponentModel;
+using System.Data;
+using System.Drawing;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Windows.Forms;
+using System.Windows.Forms.DataVisualization.Charting;
+
+namespace FirstMyProj
+{
+    public partial class _1st_step : Form
+    {
+        static int variables;
+        static int watches;
+        static string[] lines = System.IO.File.ReadAllLines(@"C:\games\input.txt");
+        public _1st_step()
+        {
+            InitializeComponent();
+        }
+
+        private void Enter_v_w_Click(object sender, EventArgs e)
+        {
+            Linear.Series.Clear();
+            Linear.Series.Add("y fact");
+            Linear.Series.Add("y esmitated");
+            Linear.Series["y fact"].ChartType = SeriesChartType.Line;
+            Linear.Series["y esmitated"].ChartType = SeriesChartType.Line;
+
+            Exp.Series.Clear();
+            Exp.Series.Add("y fact");
+            Exp.Series.Add("y esmitated");
+            Exp.Series["y fact"].ChartType = SeriesChartType.Line;
+            Exp.Series["y esmitated"].ChartType = SeriesChartType.Line;
+
+            Power.Series.Clear();
+            Power.Series.Add("y fact");
+            Power.Series.Add("y esmitated");
+            Power.Series["y fact"].ChartType = SeriesChartType.Line;
+            Power.Series["y esmitated"].ChartType = SeriesChartType.Line;
+
+            Repres.Series.Clear();
+            Repres.Series.Add("y fact");
+            Repres.Series.Add("y esmitated");
+            Repres.Series["y fact"].ChartType = SeriesChartType.Line;
+            Repres.Series["y esmitated"].ChartType = SeriesChartType.Line;
+
+
+            variables = Convert.ToInt32(VarField.Text);
+            watches = Convert.ToInt32(WatchField.Text);
+
+            double[] y = new double[watches];
+            double[,] x = new double[watches, variables + 1];
+
+
+            for (int h = 0; h < watches; h++)
+                x[h, 0] = 1;
+
+            for (int i = 0; i < watches; i++)
+            {
+                string[] line = lines[i].Split(' ', '	');
+                y[i] = Convert.ToDouble(line[0]);
+                for (int j = 0; j < variables; j++)
+                {
+                    x[i, j + 1] = Convert.ToDouble(line[1 + j]);
+                }
+            }
+
+            Regession sle = new Regession();
+            double[] sl = sle.SLE(x, y, variables, watches);
+
+            double[] y_es = new double[watches];
+            double[] y_es1 = new double[watches];
+            double[] y_es2= new double[watches];
+            double[] y_es3 = new double[watches];
+
+            y_es = sle.linear(x, sl);
+            for (int j = 0; j < watches; j++)
+            {
+                Linear.Series["y esmitated"].Points.Add(y_es[j], x[j, 1]);
+                Linear.Series["y fact"].Points.Add(y[j], x[j, 1]);
+            }
+
+            if (variables == 1)
+            {
+                y_es1 = sle.exp(x, y, variables, watches);
+                for (int j = 0; j < watches; j++)
+                {
+                    Exp.Series["y esmitated"].Points.Add(y_es1[j], x[j, 1]);
+                    Exp.Series["y fact"].Points.Add(y[j], x[j, 1]);
+                }
+
+               y_es2 = sle.power(x, y, variables, watches);
+                for (int j = 0; j < watches; j++)
+                {
+                    Power.Series["y esmitated"].Points.Add(y_es2[j], x[j, 1]);
+                    Power.Series["y fact"].Points.Add(y[j], x[j, 1]);
+                }
+
+                y_es3 = sle.repres(x, y, variables, watches);
+                for (int j = 0; j < watches; j++)
+                {
+                    Repres.Series["y esmitated"].Points.Add(y_es3[j], x[j, 1]);
+                    Repres.Series["y fact"].Points.Add(y[j], x[j, 1]);
+                }
+            }
+            
+        } 
+    }
+
+    class Regession
+    {
+        public double[] SLE(double[,] x, double[] y, int variables, int watches)
+        {
+            double[] b = new double[variables + 1];
+            double a = 0;
+            double c = 0;
+            double[,] sl = new double[variables + 1, variables + 1];
+
+            for (int i = 0; i <= variables; i++)
+            {
+                for (int j = i; j <= variables; j++)
+                {
+                    for (int g = 0; g < watches; g++)
+                    {
+                        a += x[g, i] * x[g, j];
+                        if (i == j) c += x[g, i] * y[g];
+                    }
+                    sl[i, j] = sl[j, i] = a / watches;
+                    if (i == j) b[i] = c / watches;
+                    a = 0;
+                    c = 0;
+                }
+
+            }
+
+            for (int i = 0; i <= variables; i++)
+            {
+                double d = sl[i, i];
+
+                for (int j = 0; j <= variables; j++)
+                {
+                    sl[i, j] /= d;
+                }
+                b[i] /= d;
+
+                for (int j = 0; j <= variables; j++)
+                {
+                    if (j == i) continue;
+
+                    b[j] -= b[i] * sl[j, i];
+
+                    double p = sl[j, i];
+                    for (int k = 0; k <= variables; k++)
+                    {
+                        sl[j, k] -= sl[i, k] * p;
+                    }
+
+                }
+            }
+
+            return b;
+        }
+        public double[] linear(double[,] x, double[] b)
+        {
+            double[] y = new double[Convert.ToInt32(x.Length / b.Length)];
+            for (int i = 0; i < Convert.ToInt32( x.Length/b.Length); i++)
+            {
+                y[i] = 0;
+                for (int j = 0; j< b.Length;j++)
+                {
+                    y[i] += x[i, j] * b[j];
+                } 
+            }
+            return y;
+        }
+        public double[] exp(double[,] x,double[] y,int variables, int watches)
+        {
+            double[] p = new double[watches];
+            for(int i=0; i < watches; i++)
+            {
+                p[i] = Math.Log(y[i]);
+            }
+
+
+            Regession sle = new Regession();
+            double[] b = sle.SLE(x, p, variables, watches);
+
+            b[0] = Math.Exp(b[0]);
+
+            for (int i=0;i < watches; i++)
+            {
+                p[i] = b[0] * Math.Exp(b[1] * x[i, 1]);
+            }
+            return p;
+        }
+        public double[] power(double[,] x, double[] y, int variables, int watches)
+        {
+            double[] p = new double[watches];
+            for (int i = 0; i < watches; i++)
+            {
+                p[i] = Math.Log(y[i]);
+            }
+
+            Regession sle = new Regession();
+            double[] b = sle.SLE(x, p, variables, watches);
+
+            for (int i = 0; i <= variables; i++)
+                b[i] = Math.Exp(b[i]);
+
+            for (int i = 0; i < watches ; i++)
+            {
+                p[i] = b[0] * Math.Pow (b[1], x[i, 1]);
+            }
+            return p;
+        }
+        public double[] repres(double[,] x, double[] y, int variables, int watches)
+        {
+            double[] p = new double[watches];
+            double[,] o = new double[watches,variables+1];
+            for (int i = 0; i < watches; i++)
+            {
+                p[i] = Math.Log(y[i]);
+            }
+            for (int i = 0; i < watches; i++)
+            {
+                for (int j=0; j<=variables;j++)
+                     o[i,j] = Math.Log(x[i,j]);
+                o[i, 0] = 1;
+            }
+            Regession sle = new Regession();
+            double[] b = sle.SLE(o, p, variables, watches);
+
+            b[0] = Math.Exp(b[0]);
+
+            for (int i = 0; i <watches ; i++)
+            {
+                p[i] = b[0] * Math.Pow(x[i,1], b[1]);
+            }
+            return p;
+        }
+    }
+}
